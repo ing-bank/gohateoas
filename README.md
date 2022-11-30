@@ -1,5 +1,9 @@
 # 🦁 Golang Hateoas
 
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/ing-bank/gohateoas/Go%20package)
+![GitHub](https://img.shields.io/github/license/ing-bank/gohateoas)
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/ing-bank/gohateoas)
+
 Hateoas isn't always necessary for a REST API to function, but it's definitely a nice-to-have. 
 This library provides a simple way to add hateoas links to your API responses, regardless
 of the wrapper object you use.
