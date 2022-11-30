@@ -30,7 +30,7 @@ func TestGetTypeName_ReturnsNameOnTypeB(t *testing.T) {
 	assert.Equal(t, "gohateoas.TestTypeB", result)
 }
 
-type TestType struct{}
+type TestRegisterOnType struct{}
 
 func TestRegisterOn_RegistersExpectedLinks(t *testing.T) {
 	t.Parallel()
@@ -41,7 +41,7 @@ func TestRegisterOn_RegistersExpectedLinks(t *testing.T) {
 		"no options": {
 			options: []LinkOption{},
 			expected: map[string]map[string]LinkInfo{
-				"gohateoas.TestType1": {},
+				"gohateoas.TestRegisterOnType": {},
 			},
 		},
 		"all options": {
@@ -55,7 +55,7 @@ func TestRegisterOn_RegistersExpectedLinks(t *testing.T) {
 				Custom("custom", LinkInfo{Method: http.MethodConnect, Href: "/cupcakes/custom", Comment: "Custom action"}),
 			},
 			expected: map[string]map[string]LinkInfo{
-				"gohateoas.TestType1": {
+				"gohateoas.TestRegisterOnType": {
 					"self":   LinkInfo{Method: http.MethodGet, Href: "/cupcakes/{id}", Comment: "Get a single cupcake"},
 					"index":  LinkInfo{Method: http.MethodGet, Href: "/cupcakes", Comment: "Get all cupcakes"},
 					"post":   LinkInfo{Method: http.MethodPost, Href: "/cupcakes", Comment: "Create a new cupcake"},
@@ -76,7 +76,7 @@ func TestRegisterOn_RegistersExpectedLinks(t *testing.T) {
 			registry := NewLinkRegistry()
 
 			// Act
-			RegisterOn(registry, TestType{}, testData.options...)
+			RegisterOn(registry, TestRegisterOnType{}, testData.options...)
 
 			// Assert
 			assert.Equal(t, testData.expected, registry)
@@ -87,11 +87,11 @@ func TestRegisterOn_RegistersExpectedLinks(t *testing.T) {
 func TestRegister_UsesDefaultRegistry(t *testing.T) {
 	t.Parallel()
 	// Arrange
-	type TestType struct{}
+	type TestRegisterType struct{}
 
 	// Act
-	Register(TestType{}, Self("test", "get it"))
+	Register(TestRegisterType{}, Self("test", "get it"))
 
 	// Assert
-	assert.NotEmpty(t, DefaultLinkRegistry["gohateoas.TestType1"])
+	assert.NotEmpty(t, DefaultLinkRegistry["gohateoas.TestRegisterType"])
 }
