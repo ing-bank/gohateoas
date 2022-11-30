@@ -41,7 +41,7 @@ func TestRegisterOn_RegistersExpectedLinks(t *testing.T) {
 		"no options": {
 			options: []LinkOption{},
 			expected: map[string]map[string]LinkInfo{
-				"gohateoas.TestType": {},
+				"gohateoas.TestType1": {},
 			},
 		},
 		"all options": {
@@ -55,7 +55,7 @@ func TestRegisterOn_RegistersExpectedLinks(t *testing.T) {
 				Custom("custom", LinkInfo{Method: http.MethodConnect, Href: "/cupcakes/custom", Comment: "Custom action"}),
 			},
 			expected: map[string]map[string]LinkInfo{
-				"gohateoas.TestType": {
+				"gohateoas.TestType1": {
 					"self":   LinkInfo{Method: http.MethodGet, Href: "/cupcakes/{id}", Comment: "Get a single cupcake"},
 					"index":  LinkInfo{Method: http.MethodGet, Href: "/cupcakes", Comment: "Get all cupcakes"},
 					"post":   LinkInfo{Method: http.MethodPost, Href: "/cupcakes", Comment: "Create a new cupcake"},
@@ -93,5 +93,5 @@ func TestRegister_UsesDefaultRegistry(t *testing.T) {
 	Register(TestType{}, Self("test", "get it"))
 
 	// Assert
-	assert.NotEmpty(t, DefaultLinkRegistry["gohateoas.TestType"])
+	assert.NotEmpty(t, DefaultLinkRegistry["gohateoas.TestType1"])
 }

@@ -210,13 +210,13 @@ func TestInjectLinks_CreatesExpectedJsonWithObject(t *testing.T) {
 			// Arrange
 			registry := NewLinkRegistry()
 
-			RegisterOn[Cupcake](registry,
+			RegisterOn(registry, &Cupcake{},
 				Index("/api/v1/cupcakes", "test"),
 				Self("/api/v1/cupcakes/{id}", "get itself"),
 				Custom("other", LinkInfo{Method: http.MethodGet, Href: "/api/v1/cupcakes/{name}", Comment: "get one by name"}),
 				Post("/api/v1/cupcakes", "create a new one"))
 
-			RegisterOn[Bakery](registry,
+			RegisterOn(registry, &Bakery{},
 				Index("/api/v1/bakeries", "get all bakeries"),
 				Self("/api/v1/bakeries/{id}", "get a bakery by id"),
 				Post("/api/v1/bakeries", "create a new bakery"))
@@ -412,9 +412,9 @@ func TestInjectLinks_CreatesExpectedJsonWithSlice(t *testing.T) {
 			// Arrange
 			registry := NewLinkRegistry()
 
-			RegisterOn[Cupcake](registry, Self("/api/v1/cupcakes/{id}", "get itself"))
+			RegisterOn(registry, &Cupcake{}, Self("/api/v1/cupcakes/{id}", "get itself"))
 
-			RegisterOn[Bakery](registry, Self("/api/v1/bakeries/{id}", "get a bakery by id"))
+			RegisterOn(registry, &Bakery{}, Self("/api/v1/bakeries/{id}", "get a bakery by id"))
 
 			// Act
 			result := InjectLinks(registry, testData.input)
@@ -440,21 +440,23 @@ func TestInjectLinks_ReturnsJsonOnUnknownType(t *testing.T) {
 	assert.Equal(t, normalJson, result)
 }
 
+// Test objects are numbered because of the caching mechanism.
+
 func TestInjectLinks_IgnoresIfNoTypeRegistered(t *testing.T) {
 	t.Parallel()
 	// Arrange
-	type DeepType struct {
+	type DeepType1 struct {
 		ID   int    `json:"id"`
 		Name string `json:"name"`
 	}
-	type TestType struct {
-		Deep *DeepType `json:"deep"`
+	type TestType1 struct {
+		Deep *DeepType1 `json:"deep"`
 	}
 
 	registry := NewLinkRegistry()
 
-	object := &TestType{
-		Deep: &DeepType{ID: 23, Name: "test"},
+	object := &TestType1{
+		Deep: &DeepType1{ID: 23, Name: "test"},
 	}
 
 	// Act
@@ -468,19 +470,19 @@ func TestInjectLinks_IgnoresIfNoTypeRegistered(t *testing.T) {
 func TestInjectLinks_IgnoresIfNoTypeRegisteredOnSlice(t *testing.T) {
 	t.Parallel()
 	// Arrange
-	type DeepType struct {
+	type DeepType2 struct {
 		ID   int    `json:"id"`
 		Name string `json:"name"`
 	}
-	type TestType struct {
-		Deep *DeepType `json:"deep"`
+	type TestType2 struct {
+		Deep *DeepType2 `json:"deep"`
 	}
 
 	registry := NewLinkRegistry()
 
-	object := []*TestType{
-		{Deep: &DeepType{ID: 23, Name: "test"}},
-		{Deep: &DeepType{ID: 7, Name: "other"}},
+	object := []*TestType2{
+		{Deep: &DeepType2{ID: 23, Name: "test"}},
+		{Deep: &DeepType2{ID: 7, Name: "other"}},
 	}
 
 	// Act
@@ -509,7 +511,7 @@ func TestInjectLinks_IgnoresOnNonStructSlices(t *testing.T) {
 func TestGetFieldNameFromJson_ReturnsExpectedName(t *testing.T) {
 	t.Parallel()
 
-	type TestType struct {
+	type TestType3 struct {
 		Name string `json:"name"`
 		Deep int    `json:"deep,omitempty"`
 	}
@@ -533,7 +535,7 @@ func TestGetFieldNameFromJson_ReturnsExpectedName(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			// Act
-			result := getFieldNameFromJson(TestType{}, testData.jsonKey)
+			result := getFieldNameFromJson(TestType3{}, testData.jsonKey)
 
 			// Assert
 			assert.Equal(t, testData.expected, result)
@@ -544,7 +546,7 @@ func TestGetFieldNameFromJson_ReturnsExpectedName(t *testing.T) {
 func TestGetFieldNameFromJson_IgnoresMissingJsonFields(t *testing.T) {
 	t.Parallel()
 
-	type OtherType struct {
+	type OtherType1 struct {
 		Name string `json:""`
 		Deep int    `json:"-"`
 	}
@@ -566,7 +568,7 @@ func TestGetFieldNameFromJson_IgnoresMissingJsonFields(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			// Act
-			result := getFieldNameFromJson(OtherType{}, testData.jsonKey)
+			result := getFieldNameFromJson(OtherType1{}, testData.jsonKey)
 
 			// Assert
 			assert.Equal(t, "", result)
