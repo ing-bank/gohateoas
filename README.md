@@ -1,6 +1,6 @@
 # 🦁 Golang Hateoas
 
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/ing-bank/gohateoas/Go%20package)
+[![Go package](https://github.com/ing-bank/gohateoas/actions/workflows/test.yaml/badge.svg)](https://github.com/ing-bank/gohateoas/actions/workflows/test.yaml)
 ![GitHub](https://img.shields.io/github/license/ing-bank/gohateoas)
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/ing-bank/gohateoas)
 
