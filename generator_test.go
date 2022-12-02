@@ -543,6 +543,18 @@ func TestGetFieldNameFromJson_ReturnsExpectedName(t *testing.T) {
 	}
 }
 
+func TestGetFieldNameFromJson_ReturnsEmptyStringOnNonStructType(t *testing.T) {
+	t.Parallel()
+	// Arrange
+	type TestType4s []string
+
+	// Act
+	result := getFieldNameFromJson(TestType4s{}, "any")
+
+	// Assert
+	assert.Equal(t, "", result)
+}
+
 func TestGetFieldNameFromJson_IgnoresMissingJsonFields(t *testing.T) {
 	t.Parallel()
 
