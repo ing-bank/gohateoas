@@ -28,22 +28,9 @@ func ensureConcrete[T iKind[T]](value T) T {
 	return value
 }
 
-// ensureNotASlice Ensures that the given value is not a slice, if it is a slice, we use Elem()
-// For example: Type []*string will return string. This one is not generic because it doesn't work
-// well with reflect.Value.
-func ensureNotASlice(value reflect.Type) reflect.Type {
-	result := ensureConcrete(value)
-
-	if result.Kind() == reflect.Slice {
-		return ensureNotASlice(result.Elem())
-	}
-
-	return result
-}
-
 // getFieldNameFromJson returns the field name from the json tag
 func getFieldNameFromJson(object any, jsonKey string) (string, error) {
-	typeInfo := ensureNotASlice(reflect.TypeOf(object))
+	typeInfo := ensureConcrete(reflect.TypeOf(object))
 	if typeInfo.Kind() != reflect.Struct {
 		return "", errors.New("object is not a struct")
 	}
