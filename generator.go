@@ -81,90 +81,80 @@ func getFieldNameFromJson(object any, jsonKey string) (string, error) {
 // tokenReplaceRegex is a regex that matches tokens in the form of {token}
 var tokenReplaceRegex = regexp.MustCompile(`{([^{}]*)}`)
 
+// injectLinks injects the actual links into the struct if any are registered
 func injectLinks(registry LinkRegistry, object any, result map[string]any) {
+	// Add links if there are any
+	links := registry[typeNameOf(object)]
+
+	if len(links) == 0 {
+		return
+	}
+
+	linkMap := map[string]LinkInfo{}
+
+	// Loop through every link and inject it into the object, replacing tokens
+	// with the appropriate values.
+	for linkType, linkInfo := range links {
+		// Find matches for tokens in the linkInfo like {id} or {name}
+		matches := tokenReplaceRegex.FindAllStringSubmatch(linkInfo.Href, -1)
+
+		for _, match := range matches {
+			// Check if the value is in the object, like "id" or "name"
+			urlValue, ok := result[match[1]]
+
+			if !ok {
+				continue
+			}
+
+			// Replace the {name} with the actual value
+			matchString := fmt.Sprintf("{%s}", match[1])
+			linkInfo.Href = strings.Replace(linkInfo.Href, matchString, fmt.Sprintf("%v", urlValue), -1)
+		}
+
+		// Save the linkInfo in the object
+		linkMap[linkType] = linkInfo
+	}
+
+	// Add the _links property
+	result["_links"] = linkMap
+}
+
+// walkThroughObject goes through the object and injects links into the structs it comes across
+func walkThroughObject(registry LinkRegistry, object any, result any) {
 	// Prevent nil pointer dereference
 	if result == nil {
 		return
 	}
 
-	// Add links if there are any
-	if links := registry[typeNameOf(object)]; len(links) > 0 {
-		linkMap := map[string]LinkInfo{}
+	// We use this to dissect the object
+	reflectValue := ensureConcrete(reflect.ValueOf(object))
 
-		// Loop through every link and inject it into the object, replacing tokens
-		// with the appropriate values.
-		for linkType, linkInfo := range links {
-			// Find matches for tokens in the linkInfo like {id} or {name}
-			matches := tokenReplaceRegex.FindAllStringSubmatch(linkInfo.Href, -1)
+	switch result := result.(type) {
+	case []any:
+		// Loop through the slice's entries and recursively walk through those objects
+		for index := range result {
+			walkThroughObject(registry, ensureConcrete(reflectValue.Index(index)).Interface(), result[index])
+		}
 
-			for _, match := range matches {
-				// Check if the value is in the object, like "id" or "name"
-				urlValue, ok := result[match[1]]
+	case map[string]any:
+		// Actually inject links, since this is a struct
+		injectLinks(registry, object, result)
 
-				if !ok {
+		// Loop through the map's entries and recursively walk through those objects
+		for jsonKey, value := range result {
+			switch resultCastValue := value.(type) {
+			case map[string]any, []any:
+				fieldName, err := getFieldNameFromJson(object, jsonKey)
+				if err != nil {
 					continue
 				}
 
-				// Replace the {name} with the actual value
-				matchString := fmt.Sprintf("{%s}", match[1])
-				linkInfo.Href = strings.Replace(linkInfo.Href, matchString, fmt.Sprintf("%v", urlValue), -1)
-			}
-
-			// Save the linkInfo in the object
-			linkMap[linkType] = linkInfo
-		}
-
-		// Add the _links property
-		result["_links"] = linkMap
-	}
-
-	// Dive deeper into the object and inject links into any nested objects
-	valueInfo := ensureConcrete(reflect.ValueOf(object))
-
-	// For deep slices we need to make sure we only take an element of the value, not the entire slice.
-	// We also skip everything if a slice is empty.
-	if valueInfo.Kind() == reflect.Slice && valueInfo.Len() > 0 {
-		valueInfo = ensureConcrete(valueInfo.Index(0))
-	} else if valueInfo.Kind() == reflect.Slice {
-		return
-	}
-
-	for jsonKey, value := range result {
-		switch castValue := value.(type) {
-		// If the value is a map, we need to inject links into the nested object
-		case map[string]any:
-			// We retrieve the value of the nested object and recursively call injectLinks
-			fieldName, err := getFieldNameFromJson(object, jsonKey)
-			if err != nil {
-				continue
-			}
-
-			fieldValue := valueInfo.FieldByName(fieldName)
-			if !fieldValue.IsValid() {
-				continue
-			}
-
-			injectLinks(registry, fieldValue.Interface(), castValue)
-
-		// If the value is a slice, we need to inject links into each object in the slice
-		case []any:
-			// We retrieve the value of the nested object and recursively call injectLinks
-			fieldName, err := getFieldNameFromJson(object, jsonKey)
-			if err != nil {
-				continue
-			}
-
-			fieldValue := valueInfo.FieldByName(fieldName)
-			if !fieldValue.IsValid() {
-				continue
-			}
-
-			for _, item := range castValue {
-				// Only process items that are of type map[string]any
-				switch castItem := (item).(type) {
-				case map[string]any:
-					injectLinks(registry, fieldValue.Interface(), castItem)
+				fieldValue := reflectValue.FieldByName(fieldName)
+				if !fieldValue.IsValid() {
+					continue
 				}
+
+				walkThroughObject(registry, fieldValue.Interface(), resultCastValue)
 			}
 		}
 	}
@@ -175,38 +165,15 @@ func injectLinks(registry LinkRegistry, object any, result map[string]any) {
 func InjectLinks(registry LinkRegistry, object any) []byte {
 	rawResponseJson, _ := json.Marshal(object)
 
-	reflectValue := ensureConcrete(reflect.ValueOf(object))
-
 	var resultObject any
 
-	switch reflectValue.Kind() {
-	// If the object is a slice, we need to unmarshal it into a slice of maps and use those
-	// to inject links into every item
-	case reflect.Slice:
-		var injectionSlice []any
-		_ = json.Unmarshal(rawResponseJson, &injectionSlice)
+	switch ensureConcrete(reflect.ValueOf(object)).Kind() {
+	case reflect.Slice, reflect.Struct, reflect.Array:
+		_ = json.Unmarshal(rawResponseJson, &resultObject)
+		walkThroughObject(registry, object, resultObject)
 
-		// Guard against non-struct slice items, []any can be mixed too, so we have to do it per object
-		for index := range injectionSlice {
-			switch castItem := (injectionSlice[index]).(type) {
-			case map[string]any:
-				injectLinks(registry, ensureConcrete(reflectValue.Index(index)).Interface(), castItem)
-			}
-		}
-
-		resultObject = injectionSlice
-
-	// If the object is a map, we need to unmarshal it and inject the links directly
-	case reflect.Struct:
-		var injectionMap map[string]any
-		_ = json.Unmarshal(rawResponseJson, &injectionMap)
-
-		injectLinks(registry, object, injectionMap)
-
-		resultObject = injectionMap
-
-	// Anything else falls back to a simple unmarshall
 	default:
+		// Prevent unnecessary json.Marshal
 		return rawResponseJson
 	}
 

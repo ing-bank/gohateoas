@@ -414,7 +414,6 @@ func TestInjectLinks_CreatesExpectedJsonWithSlice(t *testing.T) {
 			registry := NewLinkRegistry()
 
 			RegisterOn(registry, &Cupcake{}, Self("/api/v1/cupcakes/{id}", "get itself"))
-
 			RegisterOn(registry, &Bakery{}, Self("/api/v1/bakeries/{id}", "get a bakery by id"))
 
 			// Act
@@ -428,21 +427,15 @@ func TestInjectLinks_CreatesExpectedJsonWithSlice(t *testing.T) {
 	}
 }
 
-// Deep slices didn't originally work, so this test is to ensure that they do.
+// Deep slices originally didn't work, so this test is to ensure that they do.
 
 type CheeseStore struct {
-	ID      int       `json:"id"`
-	Cheeses []*Cheese `json:"cheeses"`
+	ID      int           `json:"id"`
+	Cheeses [][][]*Cheese `json:"cheeses"`
 }
 
 type Cheese struct {
 	ID int `json:"id"`
-
-	Ingredients []*Ingredient `json:"ingredients"`
-}
-
-type Ingredient struct {
-	Id int `json:"id"`
 }
 
 func TestInjectLinks_CreatesExpectedJsonWithDeeperSlice(t *testing.T) {
@@ -450,19 +443,15 @@ func TestInjectLinks_CreatesExpectedJsonWithDeeperSlice(t *testing.T) {
 	// Arrange
 	input := &CheeseStore{
 		ID: 53,
-		Cheeses: []*Cheese{
+		Cheeses: [][][]*Cheese{
 			{
-				ID: 54,
-				Ingredients: []*Ingredient{
-					{Id: 100},
-					{Id: 101},
-				},
-			},
-			{
-				ID: 21,
-				Ingredients: []*Ingredient{
-					{Id: 200},
-					{Id: 201},
+				{
+					{
+						ID: 54,
+					},
+					{
+						ID: 21,
+					},
 				},
 			},
 		},
@@ -471,10 +460,7 @@ func TestInjectLinks_CreatesExpectedJsonWithDeeperSlice(t *testing.T) {
 	registry := NewLinkRegistry()
 
 	RegisterOn(registry, &CheeseStore{}, Self("/api/v1/stores/{id}", "get itself"))
-
 	RegisterOn(registry, &Cheese{}, Index("/api/v1/cheeses", "get all cheeses"))
-
-	RegisterOn(registry, &Ingredient{}, Index("/api/v1/ingredients", "get all ingredients"))
 
 	// Act
 	result := InjectLinks(registry, input)
@@ -483,44 +469,20 @@ func TestInjectLinks_CreatesExpectedJsonWithDeeperSlice(t *testing.T) {
 	expected := map[string]any{
 		"id": float64(53),
 		"cheeses": []any{
-			map[string]any{
-				"id": float64(54),
-				"ingredients": []any{
+			[]any{
+				[]any{
 					map[string]any{
-						"id": float64(100),
+						"id": float64(54),
 						"_links": map[string]any{
-							"index": map[string]any{"comment": "get all ingredients", "href": "/api/v1/ingredients", "method": "GET"},
+							"index": map[string]any{"comment": "get all cheeses", "href": "/api/v1/cheeses", "method": "GET"},
 						},
 					},
 					map[string]any{
-						"id": float64(101),
+						"id": float64(21),
 						"_links": map[string]any{
-							"index": map[string]any{"comment": "get all ingredients", "href": "/api/v1/ingredients", "method": "GET"},
+							"index": map[string]any{"comment": "get all cheeses", "href": "/api/v1/cheeses", "method": "GET"},
 						},
 					},
-				},
-				"_links": map[string]any{
-					"index": map[string]any{"comment": "get all cheeses", "href": "/api/v1/cheeses", "method": "GET"},
-				},
-			},
-			map[string]any{
-				"id": float64(21),
-				"ingredients": []any{
-					map[string]any{
-						"id": float64(200),
-						"_links": map[string]any{
-							"index": map[string]any{"comment": "get all ingredients", "href": "/api/v1/ingredients", "method": "GET"},
-						},
-					},
-					map[string]any{
-						"id": float64(201),
-						"_links": map[string]any{
-							"index": map[string]any{"comment": "get all ingredients", "href": "/api/v1/ingredients", "method": "GET"},
-						},
-					},
-				},
-				"_links": map[string]any{
-					"index": map[string]any{"comment": "get all cheeses", "href": "/api/v1/cheeses", "method": "GET"},
 				},
 			},
 		},
