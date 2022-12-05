@@ -29,6 +29,11 @@ func ensureConcrete[T iKind[T]](value T) T {
 
 // getFieldNameFromJson returns the field name from the json tag
 func getFieldNameFromJson(object any, jsonKey string) string {
+	typeInfo := ensureConcrete(reflect.TypeOf(object))
+	if typeInfo.Kind() != reflect.Struct {
+		return ""
+	}
+
 	typeName := typeNameOf(object)
 
 	// Check for cached values, this way we don't need to perform reflection
@@ -39,7 +44,6 @@ func getFieldNameFromJson(object any, jsonKey string) string {
 
 	// It does not
 	typeCache := map[string]string{}
-	typeInfo := ensureConcrete(reflect.TypeOf(object))
 
 	for i := 0; i < typeInfo.NumField(); i++ {
 		// Get the json tags of this field
@@ -75,7 +79,7 @@ func injectLinks(registry LinkRegistry, object any, result map[string]any) {
 
 		// Loop through every link and inject it into the object, replacing tokens
 		// with the appropriate values.
-		for string, linkInfo := range links {
+		for linkType, linkInfo := range links {
 			// Find matches for tokens in the linkInfo like {id} or {name}
 			matches := tokenReplaceRegex.FindAllStringSubmatch(linkInfo.Href, -1)
 
@@ -93,7 +97,7 @@ func injectLinks(registry LinkRegistry, object any, result map[string]any) {
 			}
 
 			// Save the linkInfo in the object
-			linkMap[string] = linkInfo
+			linkMap[linkType] = linkInfo
 		}
 
 		// Add the _links property
