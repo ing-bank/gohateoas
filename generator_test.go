@@ -427,6 +427,68 @@ func TestInjectLinks_CreatesExpectedJsonWithSlice(t *testing.T) {
 	}
 }
 
+type CheeseStore struct {
+	ID      int     `json:"id"`
+	Cheeses Cheeses `json:"cheeses"`
+}
+
+type Cheeses []*Cheese
+type Cheese struct {
+	ID int `json:"id"`
+}
+
+func TestInjectLinks_CreatesExpectedJsonWithRenamedObject(t *testing.T) {
+	t.Parallel()
+	// Arrange
+	input := &CheeseStore{
+		ID: 53,
+		Cheeses: Cheeses{
+			{ID: 54},
+			{ID: 21},
+		},
+	}
+
+	registry := NewLinkRegistry()
+
+	RegisterOn(registry, &CheeseStore{}, Self("/api/v1/stores/{id}", "get itself"))
+
+	RegisterOn(registry, &Cheese{}, Self("/api/v1/cheeses", "get all cheeses"))
+	RegisterOn(registry, &Cheeses{}, Self("/api/v1/cheeses", "get all cheeses"))
+
+	// Act
+	result := InjectLinks(registry, input)
+
+	// Assert
+	expected := map[string]any{
+		"id": float64(53),
+		"cheeses": []any{
+			map[string]any{
+				"id": float64(54),
+				"_links": map[string]any{
+					"self": map[string]any{"comment": "get all cheeses", "href": "/api/v1/cheeses", "method": "GET"},
+				},
+			},
+			map[string]any{
+				"id": float64(21),
+				"_links": map[string]any{
+					"self": map[string]any{"comment": "get all cheeses", "href": "/api/v1/cheeses", "method": "GET"},
+				},
+			},
+		},
+		"_links": map[string]any{
+			"self": map[string]any{
+				"method":  "GET",
+				"href":    "/api/v1/stores/53",
+				"comment": "get itself",
+			},
+		},
+	}
+
+	var mapResult map[string]any
+	_ = json.Unmarshal(result, &mapResult)
+	assert.Equal(t, expected, mapResult)
+}
+
 func TestInjectLinks_ReturnsJsonOnUnknownType(t *testing.T) {
 	t.Parallel()
 	// Arrange
@@ -535,9 +597,10 @@ func TestGetFieldNameFromJson_ReturnsExpectedName(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			// Act
-			result := getFieldNameFromJson(TestType3{}, testData.jsonKey)
+			result, err := getFieldNameFromJson(TestType3{}, testData.jsonKey)
 
 			// Assert
+			assert.NoError(t, err)
 			assert.Equal(t, testData.expected, result)
 		})
 	}
@@ -549,9 +612,10 @@ func TestGetFieldNameFromJson_ReturnsEmptyStringOnNonStructType(t *testing.T) {
 	type TestType4s []string
 
 	// Act
-	result := getFieldNameFromJson(TestType4s{}, "any")
+	result, err := getFieldNameFromJson(TestType4s{}, "any")
 
 	// Assert
+	assert.EqualError(t, err, "object is not a struct")
 	assert.Equal(t, "", result)
 }
 
@@ -580,9 +644,10 @@ func TestGetFieldNameFromJson_IgnoresMissingJsonFields(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			// Act
-			result := getFieldNameFromJson(OtherType1{}, testData.jsonKey)
+			result, err := getFieldNameFromJson(OtherType1{}, testData.jsonKey)
 
 			// Assert
+			assert.NoError(t, err)
 			assert.Equal(t, "", result)
 		})
 	}

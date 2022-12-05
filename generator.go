@@ -2,6 +2,7 @@ package gohateoas
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -28,10 +29,10 @@ func ensureConcrete[T iKind[T]](value T) T {
 }
 
 // getFieldNameFromJson returns the field name from the json tag
-func getFieldNameFromJson(object any, jsonKey string) string {
+func getFieldNameFromJson(object any, jsonKey string) (string, error) {
 	typeInfo := ensureConcrete(reflect.TypeOf(object))
 	if typeInfo.Kind() != reflect.Struct {
-		return ""
+		return "", errors.New("object is not a struct")
 	}
 
 	typeName := typeNameOf(object)
@@ -39,7 +40,7 @@ func getFieldNameFromJson(object any, jsonKey string) string {
 	// Check for cached values, this way we don't need to perform reflection
 	// every time we want to get the field name from a json key.
 	if cachedValue, ok := typeCacheMap.Load(typeName); ok {
-		return cachedValue.(map[string]string)[jsonKey]
+		return cachedValue.(map[string]string)[jsonKey], nil
 	}
 
 	// It does not
@@ -61,7 +62,7 @@ func getFieldNameFromJson(object any, jsonKey string) string {
 	}
 
 	typeCacheMap.Store(typeName, typeCache)
-	return typeCache[jsonKey]
+	return typeCache[jsonKey], nil
 }
 
 // tokenReplaceRegex is a regex that matches tokens in the form of {token}
@@ -112,7 +113,12 @@ func injectLinks(registry LinkRegistry, object any, result map[string]any) {
 		// If the value is a map, we need to inject links into the nested object
 		case map[string]any:
 			// We retrieve the value of the nested object and recursively call injectLinks
-			fieldValue := typeInfo.FieldByName(getFieldNameFromJson(object, jsonKey))
+			fieldName, err := getFieldNameFromJson(object, jsonKey)
+			if err != nil {
+				continue
+			}
+
+			fieldValue := typeInfo.FieldByName(fieldName)
 			if !fieldValue.IsValid() {
 				continue
 			}
@@ -122,7 +128,12 @@ func injectLinks(registry LinkRegistry, object any, result map[string]any) {
 		// If the value is a slice, we need to inject links into each object in the slice
 		case []any:
 			// We retrieve the value of the nested object and recursively call injectLinks
-			fieldValue := typeInfo.FieldByName(getFieldNameFromJson(object, jsonKey))
+			fieldName, err := getFieldNameFromJson(object, jsonKey)
+			if err != nil {
+				continue
+			}
+
+			fieldValue := typeInfo.FieldByName(fieldName)
 			if !fieldValue.IsValid() {
 				continue
 			}
