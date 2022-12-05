@@ -28,9 +28,22 @@ func ensureConcrete[T iKind[T]](value T) T {
 	return value
 }
 
+// ensureNotASlice Ensures that the given value is not a slice, if it is a slice, we use Elem()
+// For example: Type []*string will return string. This one is not generic because it doesn't work
+// well with reflect.Value.
+func ensureNotASlice(value reflect.Type) reflect.Type {
+	result := ensureConcrete(value)
+
+	if result.Kind() == reflect.Slice {
+		return ensureNotASlice(result.Elem())
+	}
+
+	return result
+}
+
 // getFieldNameFromJson returns the field name from the json tag
 func getFieldNameFromJson(object any, jsonKey string) (string, error) {
-	typeInfo := ensureConcrete(reflect.TypeOf(object))
+	typeInfo := ensureNotASlice(reflect.TypeOf(object))
 	if typeInfo.Kind() != reflect.Struct {
 		return "", errors.New("object is not a struct")
 	}
@@ -106,10 +119,18 @@ func injectLinks(registry LinkRegistry, object any, result map[string]any) {
 	}
 
 	// Dive deeper into the object and inject links into any nested objects
-	typeInfo := ensureConcrete(reflect.ValueOf(object))
+	valueInfo := ensureConcrete(reflect.ValueOf(object))
+
+	// For deep slices we need to make sure we only take an element of the value, not the entire slice.
+	// We also skip everything if a slice is empty.
+	if valueInfo.Kind() == reflect.Slice && valueInfo.Len() > 0 {
+		valueInfo = ensureConcrete(valueInfo.Index(0))
+	} else if valueInfo.Kind() == reflect.Slice {
+		return
+	}
 
 	for jsonKey, value := range result {
-		switch castValue := (value).(type) {
+		switch castValue := value.(type) {
 		// If the value is a map, we need to inject links into the nested object
 		case map[string]any:
 			// We retrieve the value of the nested object and recursively call injectLinks
@@ -118,7 +139,7 @@ func injectLinks(registry LinkRegistry, object any, result map[string]any) {
 				continue
 			}
 
-			fieldValue := typeInfo.FieldByName(fieldName)
+			fieldValue := valueInfo.FieldByName(fieldName)
 			if !fieldValue.IsValid() {
 				continue
 			}
@@ -133,7 +154,7 @@ func injectLinks(registry LinkRegistry, object any, result map[string]any) {
 				continue
 			}
 
-			fieldValue := typeInfo.FieldByName(fieldName)
+			fieldValue := valueInfo.FieldByName(fieldName)
 			if !fieldValue.IsValid() {
 				continue
 			}
@@ -169,7 +190,7 @@ func InjectLinks(registry LinkRegistry, object any) []byte {
 		for index := range injectionSlice {
 			switch castItem := (injectionSlice[index]).(type) {
 			case map[string]any:
-				injectLinks(registry, reflectValue.Index(index).Interface(), castItem)
+				injectLinks(registry, ensureConcrete(reflectValue.Index(index)).Interface(), castItem)
 			}
 		}
 
