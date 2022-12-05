@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	"net/http"
+	"reflect"
 	"testing"
 )
 
@@ -413,7 +414,6 @@ func TestInjectLinks_CreatesExpectedJsonWithSlice(t *testing.T) {
 			registry := NewLinkRegistry()
 
 			RegisterOn(registry, &Cupcake{}, Self("/api/v1/cupcakes/{id}", "get itself"))
-
 			RegisterOn(registry, &Bakery{}, Self("/api/v1/bakeries/{id}", "get a bakery by id"))
 
 			// Act
@@ -425,6 +425,79 @@ func TestInjectLinks_CreatesExpectedJsonWithSlice(t *testing.T) {
 			assert.Equal(t, testData.expected, mapResult)
 		})
 	}
+}
+
+// Deep slices originally didn't work, so this test is to ensure that they do.
+
+type CheeseStore struct {
+	ID      int           `json:"id"`
+	Cheeses [][][]*Cheese `json:"cheeses"`
+}
+
+type Cheese struct {
+	ID int `json:"id"`
+}
+
+func TestInjectLinks_CreatesExpectedJsonWithDeeperSlice(t *testing.T) {
+	t.Parallel()
+	// Arrange
+	input := &CheeseStore{
+		ID: 53,
+		Cheeses: [][][]*Cheese{
+			{
+				{
+					{
+						ID: 54,
+					},
+					{
+						ID: 21,
+					},
+				},
+			},
+		},
+	}
+
+	registry := NewLinkRegistry()
+
+	RegisterOn(registry, &CheeseStore{}, Self("/api/v1/stores/{id}", "get itself"))
+	RegisterOn(registry, &Cheese{}, Index("/api/v1/cheeses", "get all cheeses"))
+
+	// Act
+	result := InjectLinks(registry, input)
+
+	// Assert
+	expected := map[string]any{
+		"id": float64(53),
+		"cheeses": []any{
+			[]any{
+				[]any{
+					map[string]any{
+						"id": float64(54),
+						"_links": map[string]any{
+							"index": map[string]any{"comment": "get all cheeses", "href": "/api/v1/cheeses", "method": "GET"},
+						},
+					},
+					map[string]any{
+						"id": float64(21),
+						"_links": map[string]any{
+							"index": map[string]any{"comment": "get all cheeses", "href": "/api/v1/cheeses", "method": "GET"},
+						},
+					},
+				},
+			},
+		},
+		"_links": map[string]any{
+			"self": map[string]any{
+				"method":  "GET",
+				"href":    "/api/v1/stores/53",
+				"comment": "get itself",
+			},
+		},
+	}
+
+	var mapResult map[string]any
+	_ = json.Unmarshal(result, &mapResult)
+	assert.Equal(t, expected, mapResult)
 }
 
 func TestInjectLinks_ReturnsJsonOnUnknownType(t *testing.T) {
@@ -535,9 +608,10 @@ func TestGetFieldNameFromJson_ReturnsExpectedName(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			// Act
-			result := getFieldNameFromJson(TestType3{}, testData.jsonKey)
+			result, err := getFieldNameFromJson(TestType3{}, testData.jsonKey)
 
 			// Assert
+			assert.NoError(t, err)
 			assert.Equal(t, testData.expected, result)
 		})
 	}
@@ -549,9 +623,10 @@ func TestGetFieldNameFromJson_ReturnsEmptyStringOnNonStructType(t *testing.T) {
 	type TestType4s []string
 
 	// Act
-	result := getFieldNameFromJson(TestType4s{}, "any")
+	result, err := getFieldNameFromJson(TestType4s{}, "any")
 
 	// Assert
+	assert.EqualError(t, err, "object is not a struct")
 	assert.Equal(t, "", result)
 }
 
@@ -580,10 +655,87 @@ func TestGetFieldNameFromJson_IgnoresMissingJsonFields(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			// Act
-			result := getFieldNameFromJson(OtherType1{}, testData.jsonKey)
+			result, err := getFieldNameFromJson(OtherType1{}, testData.jsonKey)
 
 			// Assert
+			assert.NoError(t, err)
 			assert.Equal(t, "", result)
 		})
 	}
+}
+
+func TestEnsureConcrete_TurnsTypeTestAIntoValue(t *testing.T) {
+	t.Parallel()
+	// Arrange
+	type TestA struct{}
+	reflectPointer := reflect.TypeOf(&TestA{})
+
+	// Act
+	result := ensureConcrete(reflectPointer)
+
+	// Assert
+	reflectValue := reflect.TypeOf(TestA{})
+
+	assert.Equal(t, reflectValue, result)
+}
+
+func TestEnsureConcrete_TurnsTypeTestBIntoValue(t *testing.T) {
+	t.Parallel()
+	// Arrange
+	type TestB struct{}
+	reflectPointer := reflect.TypeOf(&TestB{})
+
+	// Act
+	result := ensureConcrete(reflectPointer)
+
+	// Assert
+	reflectValue := reflect.TypeOf(TestB{})
+
+	assert.Equal(t, reflectValue, result)
+}
+
+func TestEnsureConcrete_TurnsTypeTestAIntoValueWithMultiplePointers(t *testing.T) {
+	t.Parallel()
+	// Arrange
+	type TestA struct{}
+
+	first := &TestA{}
+	second := &first
+	third := &second
+
+	reflectPointer := reflect.TypeOf(&third)
+
+	// Act
+	result := ensureConcrete(reflectPointer)
+
+	// Assert
+	reflectValue := reflect.TypeOf(TestA{})
+
+	assert.Equal(t, reflectValue, result)
+}
+
+func TestEnsureConcrete_LeavesValueOfTypeTestAAlone(t *testing.T) {
+	t.Parallel()
+	// Arrange
+	type TestA struct{}
+	reflectValue := reflect.TypeOf(TestA{})
+
+	// Act
+	result := ensureConcrete(reflectValue)
+
+	// Assert
+	assert.Equal(t, reflectValue, result)
+}
+
+func TestEnsureConcrete_LeavesValueOfTypeTestBAlone(t *testing.T) {
+	t.Parallel()
+	// Arrange
+	type TestB struct{}
+	reflectValue := reflect.TypeOf(TestB{})
+
+	// Act
+	result := ensureConcrete(reflectValue)
+
+	// Assert
+	assert.Equal(t, reflectValue, result)
 }
