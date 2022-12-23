@@ -59,7 +59,6 @@ func main() {
 1. Clone the repository
 2. Run `make t` to run unit tests
 3. Run `make fmt` to format code
-4. Run `make docs` to update the documentation
 
 You can run `make` to see a list of useful commands.
 
