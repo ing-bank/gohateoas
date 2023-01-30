@@ -4,14 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/survivorbat/go-tsyncmap"
 	"reflect"
 	"regexp"
 	"strings"
-	"sync"
 )
 
 // typeCacheMap is used to easily fetch json keys from a type
-var typeCacheMap = &sync.Map{} // map[string]map[string]string{}
+var typeCacheMap = &tsyncmap.Map[string, map[string]string]{}
 
 // iKind is an abstraction of reflect.Value and reflect.Type that allows us to make ensureConcrete generic.
 type iKind[T any] interface {
@@ -40,7 +40,7 @@ func getFieldNameFromJson(object any, jsonKey string) (string, error) {
 	// Check for cached values, this way we don't need to perform reflection
 	// every time we want to get the field name from a json key.
 	if cachedValue, ok := typeCacheMap.Load(typeName); ok {
-		return cachedValue.(map[string]string)[jsonKey], nil
+		return cachedValue[jsonKey], nil
 	}
 
 	// It does not
