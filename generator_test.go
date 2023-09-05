@@ -526,19 +526,19 @@ func TestInjectLinks_ReturnsJsonOnUnknownType(t *testing.T) {
 func TestInjectLinks_IgnoresIfNoTypeRegistered(t *testing.T) {
 	t.Parallel()
 	// Arrange
-	type DeepType1 struct {
+	type deepType1 struct {
 		ID   int    `json:"id"`
 		Name string `json:"name"`
 	}
-	type TestType1 struct {
-		Deep *DeepType1 `json:"deep"`
+	type testType1 struct {
+		Deep *deepType1 `json:"deep"`
 	}
 
 	registry := NewLinkRegistry()
 	RegisterOn(registry, empty{}, Self("", ""))
 
-	object := &TestType1{
-		Deep: &DeepType1{ID: 23, Name: "test"},
+	object := &testType1{
+		Deep: &deepType1{ID: 23, Name: "test"},
 	}
 
 	// Act
@@ -556,14 +556,14 @@ func TestInjectLinks_IgnoresIfNoTypeRegisteredOnSlice(t *testing.T) {
 		ID   int    `json:"id"`
 		Name string `json:"name"`
 	}
-	type TestType2 struct {
+	type testType2 struct {
 		Deep *DeepType2 `json:"deep"`
 	}
 
 	registry := NewLinkRegistry()
 	RegisterOn(registry, empty{}, Self("", ""))
 
-	object := []*TestType2{
+	object := []*testType2{
 		{Deep: &DeepType2{ID: 23, Name: "test"}},
 		{Deep: &DeepType2{ID: 7, Name: "other"}},
 	}
@@ -595,12 +595,12 @@ func TestInjectLinks_IgnoresOnNonStructSlices(t *testing.T) {
 func TestInjectLinks_IgnoresIfRegistryIsEmpty(t *testing.T) {
 	t.Parallel()
 	// Arrange
-	type TestType3 struct {
+	type testType3 struct {
 	}
 
 	registry := NewLinkRegistry()
 
-	object := &TestType3{}
+	object := &testType3{}
 
 	// Act
 	result := InjectLinks(registry, object)
@@ -613,7 +613,7 @@ func TestInjectLinks_IgnoresIfRegistryIsEmpty(t *testing.T) {
 func TestGetFieldNameFromJson_ReturnsExpectedName(t *testing.T) {
 	t.Parallel()
 
-	type TestType3 struct {
+	type testType3 struct {
 		Name string `json:"name"`
 		Deep int    `json:"deep,omitempty"`
 	}
@@ -637,7 +637,7 @@ func TestGetFieldNameFromJson_ReturnsExpectedName(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			// Act
-			result, err := getFieldNameFromJson(TestType3{}, testData.jsonKey)
+			result, err := getFieldNameFromJson(testType3{}, testData.jsonKey)
 
 			// Assert
 			assert.NoError(t, err)
@@ -649,10 +649,10 @@ func TestGetFieldNameFromJson_ReturnsExpectedName(t *testing.T) {
 func TestGetFieldNameFromJson_ReturnsEmptyStringOnNonStructType(t *testing.T) {
 	t.Parallel()
 	// Arrange
-	type TestType4s []string
+	type testType4s []string
 
 	// Act
-	result, err := getFieldNameFromJson(TestType4s{}, "any")
+	result, err := getFieldNameFromJson(testType4s{}, "any")
 
 	// Assert
 	assert.EqualError(t, err, "object is not a struct")
