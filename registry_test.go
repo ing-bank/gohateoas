@@ -9,25 +9,25 @@ import (
 func TestGetTypeName_ReturnsNameOnTypeA(t *testing.T) {
 	t.Parallel()
 	// Arrange
-	type TestTypeA struct{}
+	type testTypeA struct{}
 
 	// Act
-	result := typeNameOf(new(TestTypeA))
+	result := typeNameOf(new(testTypeA))
 
 	// Assert
-	assert.Equal(t, "gohateoas.TestTypeA", result)
+	assert.Equal(t, "gohateoas.testTypeA", result)
 }
 
 func TestGetTypeName_ReturnsNameOnTypeB(t *testing.T) {
 	t.Parallel()
 	// Arrange
-	type TestTypeB struct{}
+	type testTypeB struct{}
 
 	// Act
-	result := typeNameOf(new(*****[]*[]*[]****TestTypeB))
+	result := typeNameOf(new(*****[]*[]*[]****testTypeB))
 
 	// Assert
-	assert.Equal(t, "gohateoas.TestTypeB", result)
+	assert.Equal(t, "gohateoas.testTypeB", result)
 }
 
 type TestRegisterOnType struct{}

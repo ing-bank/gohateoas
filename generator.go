@@ -152,6 +152,11 @@ func walkThroughObject(registry LinkRegistry, object any, result any) {
 func InjectLinks(registry LinkRegistry, object any) []byte {
 	rawResponseJson, _ := json.Marshal(object)
 
+	// If the registry is empty, don't bother doing any reflection
+	if len(registry) == 0 {
+		return rawResponseJson
+	}
+
 	var resultObject any
 
 	switch ensureConcrete(reflect.ValueOf(object)).Kind() {
