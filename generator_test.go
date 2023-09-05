@@ -2,24 +2,26 @@ package gohateoas
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"reflect"
 	"testing"
+	"time"
 )
 
-type Cupcake struct {
+type cupcake struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
 
 	// Infinite loop
-	Bakery *Bakery `json:"bakery"`
+	Bakery *bakery `json:"bakery"`
 }
 
-type Bakery struct {
+type bakery struct {
 	ID       int        `json:"id"`
-	Cupcake  *Cupcake   `json:"cupcake,omitempty"`
-	Cupcakes []*Cupcake `json:"cupcakes,omitempty"`
+	Cupcake  *cupcake   `json:"cupcake,omitempty"`
+	Cupcakes []*cupcake `json:"cupcakes,omitempty"`
 }
 
 func TestTokenReplaceRegex_MatchesCorrectly(t *testing.T) {
@@ -57,12 +59,12 @@ func TestTokenReplaceRegex_MatchesCorrectly(t *testing.T) {
 func TestInjectLinks_CreatesExpectedJsonWithObject(t *testing.T) {
 	t.Parallel()
 	tests := map[string]struct {
-		input    *Bakery
+		input    *bakery
 		expected map[string]any
 	}{
 		"nil": {},
 		"empty": {
-			input: &Bakery{},
+			input: &bakery{},
 			expected: map[string]any{
 				"_links": map[string]any{
 					"index": map[string]any{
@@ -85,7 +87,7 @@ func TestInjectLinks_CreatesExpectedJsonWithObject(t *testing.T) {
 			},
 		},
 		"simple": {
-			input: &Bakery{
+			input: &bakery{
 				ID: 234,
 			},
 			expected: map[string]any{
@@ -110,9 +112,9 @@ func TestInjectLinks_CreatesExpectedJsonWithObject(t *testing.T) {
 			},
 		},
 		"deep object": {
-			input: &Bakery{
+			input: &bakery{
 				ID: 234,
-				Cupcake: &Cupcake{
+				Cupcake: &cupcake{
 					ID:   123,
 					Name: "abc",
 				},
@@ -150,9 +152,9 @@ func TestInjectLinks_CreatesExpectedJsonWithObject(t *testing.T) {
 			},
 		},
 		"deep array": {
-			input: &Bakery{
+			input: &bakery{
 				ID: 234,
-				Cupcakes: []*Cupcake{
+				Cupcakes: []*cupcake{
 					{ID: 1, Name: "a"},
 					{ID: 3, Name: "c"},
 				},
@@ -211,13 +213,13 @@ func TestInjectLinks_CreatesExpectedJsonWithObject(t *testing.T) {
 			// Arrange
 			registry := NewLinkRegistry()
 
-			RegisterOn(registry, &Cupcake{},
+			RegisterOn(registry, &cupcake{},
 				Index("/api/v1/cupcakes", "test"),
 				Self("/api/v1/cupcakes/{id}", "get itself"),
 				Custom("other", LinkInfo{Method: http.MethodGet, Href: "/api/v1/cupcakes/{name}", Comment: "get one by name"}),
 				Post("/api/v1/cupcakes", "create a new one"))
 
-			RegisterOn(registry, &Bakery{},
+			RegisterOn(registry, &bakery{},
 				Index("/api/v1/bakeries", "get all bakeries"),
 				Self("/api/v1/bakeries/{id}", "get a bakery by id"),
 				Post("/api/v1/bakeries", "create a new bakery"))
@@ -236,16 +238,16 @@ func TestInjectLinks_CreatesExpectedJsonWithObject(t *testing.T) {
 func TestInjectLinks_CreatesExpectedJsonWithSlice(t *testing.T) {
 	t.Parallel()
 	tests := map[string]struct {
-		input    []*Bakery
+		input    []*bakery
 		expected []any
 	}{
 		"nil": {},
 		"empty": {
-			input:    []*Bakery{},
+			input:    []*bakery{},
 			expected: []any{},
 		},
 		"simple": {
-			input: []*Bakery{
+			input: []*bakery{
 				{ID: 234},
 				{ID: 556},
 			},
@@ -273,17 +275,17 @@ func TestInjectLinks_CreatesExpectedJsonWithSlice(t *testing.T) {
 			},
 		},
 		"deep object": {
-			input: []*Bakery{
+			input: []*bakery{
 				{
 					ID: 234,
-					Cupcake: &Cupcake{
+					Cupcake: &cupcake{
 						ID:   123,
 						Name: "abc",
 					},
 				},
 				{
 					ID: 777,
-					Cupcake: &Cupcake{
+					Cupcake: &cupcake{
 						ID:   88,
 						Name: "abc",
 					},
@@ -329,17 +331,17 @@ func TestInjectLinks_CreatesExpectedJsonWithSlice(t *testing.T) {
 			},
 		},
 		"deep array": {
-			input: []*Bakery{
+			input: []*bakery{
 				{
 					ID: 234,
-					Cupcakes: []*Cupcake{
+					Cupcakes: []*cupcake{
 						{ID: 1, Name: "a"},
 						{ID: 3, Name: "c"},
 					},
 				},
 				{
 					ID: 879,
-					Cupcakes: []*Cupcake{
+					Cupcakes: []*cupcake{
 						{ID: 5, Name: "a"},
 						{ID: 6, Name: "c"},
 					},
@@ -413,8 +415,8 @@ func TestInjectLinks_CreatesExpectedJsonWithSlice(t *testing.T) {
 			// Arrange
 			registry := NewLinkRegistry()
 
-			RegisterOn(registry, &Cupcake{}, Self("/api/v1/cupcakes/{id}", "get itself"))
-			RegisterOn(registry, &Bakery{}, Self("/api/v1/bakeries/{id}", "get a bakery by id"))
+			RegisterOn(registry, &cupcake{}, Self("/api/v1/cupcakes/{id}", "get itself"))
+			RegisterOn(registry, &bakery{}, Self("/api/v1/bakeries/{id}", "get a bakery by id"))
 
 			// Act
 			result := InjectLinks(registry, testData.input)
@@ -429,21 +431,21 @@ func TestInjectLinks_CreatesExpectedJsonWithSlice(t *testing.T) {
 
 // Deep slices originally didn't work, so this test is to ensure that they do.
 
-type CheeseStore struct {
+type cheeseStore struct {
 	ID      int           `json:"id"`
-	Cheeses [][][]*Cheese `json:"cheeses"`
+	Cheeses [][][]*cheese `json:"cheeses"`
 }
 
-type Cheese struct {
+type cheese struct {
 	ID int `json:"id"`
 }
 
 func TestInjectLinks_CreatesExpectedJsonWithDeeperSlice(t *testing.T) {
 	t.Parallel()
 	// Arrange
-	input := &CheeseStore{
+	input := &cheeseStore{
 		ID: 53,
-		Cheeses: [][][]*Cheese{
+		Cheeses: [][][]*cheese{
 			{
 				{
 					{
@@ -459,8 +461,8 @@ func TestInjectLinks_CreatesExpectedJsonWithDeeperSlice(t *testing.T) {
 
 	registry := NewLinkRegistry()
 
-	RegisterOn(registry, &CheeseStore{}, Self("/api/v1/stores/{id}", "get itself"))
-	RegisterOn(registry, &Cheese{}, Index("/api/v1/cheeses", "get all cheeses"))
+	RegisterOn(registry, &cheeseStore{}, Self("/api/v1/stores/{id}", "get itself"))
+	RegisterOn(registry, &cheese{}, Index("/api/v1/cheeses", "get all cheeses"))
 
 	// Act
 	result := InjectLinks(registry, input)
@@ -500,10 +502,16 @@ func TestInjectLinks_CreatesExpectedJsonWithDeeperSlice(t *testing.T) {
 	assert.Equal(t, expected, mapResult)
 }
 
+// empty is used as a dummy to make sure the if-statement in InjectLinks doesn't halt execution on no registered links
+type empty struct {
+}
+
 func TestInjectLinks_ReturnsJsonOnUnknownType(t *testing.T) {
 	t.Parallel()
 	// Arrange
 	registry := NewLinkRegistry()
+
+	RegisterOn(registry, empty{}, Self("", ""))
 
 	// Act
 	result := InjectLinks(registry, "test")
@@ -527,6 +535,7 @@ func TestInjectLinks_IgnoresIfNoTypeRegistered(t *testing.T) {
 	}
 
 	registry := NewLinkRegistry()
+	RegisterOn(registry, empty{}, Self("", ""))
 
 	object := &TestType1{
 		Deep: &DeepType1{ID: 23, Name: "test"},
@@ -552,6 +561,7 @@ func TestInjectLinks_IgnoresIfNoTypeRegisteredOnSlice(t *testing.T) {
 	}
 
 	registry := NewLinkRegistry()
+	RegisterOn(registry, empty{}, Self("", ""))
 
 	object := []*TestType2{
 		{Deep: &DeepType2{ID: 23, Name: "test"}},
@@ -570,8 +580,27 @@ func TestInjectLinks_IgnoresOnNonStructSlices(t *testing.T) {
 	t.Parallel()
 	// Arrange
 	registry := NewLinkRegistry()
+	RegisterOn(registry, empty{}, Self("", ""))
 
 	object := []string{"a", "b", "c"}
+
+	// Act
+	result := InjectLinks(registry, object)
+
+	// Assert
+	normalJson, _ := json.Marshal(object)
+	assert.Equal(t, normalJson, result)
+}
+
+func TestInjectLinks_IgnoresIfRegistryIsEmpty(t *testing.T) {
+	t.Parallel()
+	// Arrange
+	type TestType3 struct {
+	}
+
+	registry := NewLinkRegistry()
+
+	object := &TestType3{}
 
 	// Act
 	result := InjectLinks(registry, object)
@@ -738,4 +767,117 @@ func TestEnsureConcrete_LeavesValueOfTypeTestBAlone(t *testing.T) {
 
 	// Assert
 	assert.Equal(t, reflectValue, result)
+}
+
+func BenchmarkInjectLinks(b *testing.B) {
+	type base struct {
+		ID             [16]byte  `json:"id"`
+		Name           string    `json:"name"`
+		Brand          string    `json:"brand"`
+		Weight         int       `json:"weight"`
+		Expired        bool      `json:"expired"`
+		ExpirationDate time.Time `json:"expirationDate"`
+	}
+
+	type fruit struct {
+		base
+	}
+
+	type vegetable struct {
+		base
+	}
+
+	type cake struct {
+		base
+	}
+
+	type fridge struct {
+		base
+
+		Cakes      []cake
+		Fruits     []fruit
+		Vegetables []vegetable
+	}
+
+	inputTests := map[string]func() []fridge{
+		"1 fridge with 1 of each": func() []fridge {
+			return []fridge{
+				{
+					Cakes:      make([]cake, 1),
+					Fruits:     make([]fruit, 1),
+					Vegetables: make([]vegetable, 1),
+				},
+			}
+		},
+		"1 fridge with 6000 of each": func() []fridge {
+			return []fridge{
+				{
+					Cakes:      make([]cake, 6000),
+					Fruits:     make([]fruit, 6000),
+					Vegetables: make([]vegetable, 6000),
+				},
+			}
+		},
+		"6000 empty fridges": func() []fridge {
+			return make([]fridge, 6000)
+		},
+		"6000 fridges with 1 of each": func() []fridge {
+			result := make([]fridge, 6000)
+
+			for i := 0; i < len(result); i++ {
+				result[i] = fridge{
+					Cakes:      make([]cake, 1),
+					Fruits:     make([]fruit, 1),
+					Vegetables: make([]vegetable, 1),
+				}
+			}
+
+			return result
+		},
+		"600 fridges with 600 of each": func() []fridge {
+			result := make([]fridge, 600)
+
+			for i := 0; i < len(result); i++ {
+				result[i] = fridge{
+					Cakes:      make([]cake, 600),
+					Fruits:     make([]fruit, 600),
+					Vegetables: make([]vegetable, 600),
+				}
+			}
+
+			return result
+		},
+	}
+
+	registryTests := map[string]func() LinkRegistry{
+		// This test won't do much because there's an if-statement blocking execution, but it gives us a bit of insight
+		"no links": func() LinkRegistry {
+			return NewLinkRegistry()
+		},
+
+		"3 links for fridge": func() LinkRegistry {
+			registry := NewLinkRegistry()
+			RegisterOn(registry, fridge{}, Self("/api/fridges", "Get this fridge"), Post("/api/fridges", "Create a new fridge"), Delete("/api/v1/fridges/{id}", "Delete a fridge"))
+			return registry
+		},
+
+		"3 links for all objects": func() LinkRegistry {
+			registry := NewLinkRegistry()
+			RegisterOn(registry, fridge{}, Self("/api/fridges", "Get this fridge"), Post("/api/fridges", "Create a new fridge"), Delete("/api/v1/fridges/{id}", "Delete a fridge"))
+			RegisterOn(registry, vegetable{}, Self("/api/vegetables", "Get this vegetable"), Post("/api/vegetables", "Create a new vegetable"), Delete("/api/v1/vegetables/{id}", "Delete a vegetable"))
+			RegisterOn(registry, fruit{}, Self("/api/fruits", "Get this fruit"), Post("/api/fruits", "Create a new fruit"), Delete("/api/v1/fruits/{id}", "Delete a fruit"))
+			RegisterOn(registry, cake{}, Self("/api/cakes", "Get this cake"), Post("/api/cakes", "Create a new cake"), Delete("/api/v1/cakes/{id}", "Delete a cake"))
+			return registry
+		},
+	}
+
+	for registryName, registryData := range registryTests {
+		for inputName, inputData := range inputTests {
+			b.Run(fmt.Sprintf("%s, %s", registryName, inputName), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					_ = InjectLinks(registryData(), inputData())
+				}
+			})
+		}
+	}
 }
