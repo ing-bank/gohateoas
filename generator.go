@@ -21,6 +21,8 @@ type iKind[T any] interface {
 }
 
 // ensureConcrete ensures that the given value is a value and not a pointer, if it is, convert it to its element type
+//
+//nolint:ireturn // Does not matter in this context
 func ensureConcrete[T iKind[T]](value T) T {
 	if value.Kind() == reflect.Ptr {
 		return ensureConcrete[T](value.Elem())
