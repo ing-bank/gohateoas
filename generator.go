@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/survivorbat/go-tsyncmap"
 	"reflect"
 	"regexp"
 	"strings"
+
+	"github.com/survivorbat/go-tsyncmap"
 )
 
 // typeCacheMap is used to easily fetch json keys from a type
@@ -28,11 +29,14 @@ func ensureConcrete[T iKind[T]](value T) T {
 	return value
 }
 
+// errNotAStruct can be exported in the future if need be
+var errNotAStruct = errors.New("object is not a struct")
+
 // getFieldNameFromJson returns the field name from the json tag
 func getFieldNameFromJson(object any, jsonKey string) (string, error) {
 	typeInfo := ensureConcrete(reflect.TypeOf(object))
 	if typeInfo.Kind() != reflect.Struct {
-		return "", errors.New("object is not a struct")
+		return "", errNotAStruct
 	}
 
 	typeName := typeNameOf(object)
@@ -62,6 +66,7 @@ func getFieldNameFromJson(object any, jsonKey string) (string, error) {
 	}
 
 	typeCacheMap.Store(typeName, typeCache)
+
 	return typeCache[jsonKey], nil
 }
 
@@ -95,7 +100,7 @@ func injectLinks(registry LinkRegistry, object any, result map[string]any) {
 
 			// Replace the {name} with the actual value
 			matchString := fmt.Sprintf("{%s}", match[1])
-			linkInfo.Href = strings.Replace(linkInfo.Href, matchString, fmt.Sprintf("%v", urlValue), -1)
+			linkInfo.Href = strings.ReplaceAll(linkInfo.Href, matchString, fmt.Sprintf("%v", urlValue))
 		}
 
 		// Save the linkInfo in the object
@@ -159,6 +164,7 @@ func InjectLinks(registry LinkRegistry, object any) []byte {
 
 	var resultObject any
 
+	//nolint:exhaustive // Doesn't make sense to add more here
 	switch ensureConcrete(reflect.ValueOf(object)).Kind() {
 	case reflect.Slice, reflect.Struct, reflect.Array:
 		_ = json.Unmarshal(rawResponseJson, &resultObject)
@@ -170,5 +176,6 @@ func InjectLinks(registry LinkRegistry, object any) []byte {
 	}
 
 	finalResponse, _ := json.Marshal(resultObject)
+
 	return finalResponse
 }

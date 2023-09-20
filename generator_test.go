@@ -3,11 +3,12 @@ package gohateoas
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type cupcake struct {
@@ -503,8 +504,7 @@ func TestInjectLinks_CreatesExpectedJsonWithDeeperSlice(t *testing.T) {
 }
 
 // empty is used as a dummy to make sure the if-statement in InjectLinks doesn't halt execution on no registered links
-type empty struct {
-}
+type empty struct{}
 
 func TestInjectLinks_ReturnsJsonOnUnknownType(t *testing.T) {
 	t.Parallel()
@@ -595,8 +595,7 @@ func TestInjectLinks_IgnoresOnNonStructSlices(t *testing.T) {
 func TestInjectLinks_IgnoresIfRegistryIsEmpty(t *testing.T) {
 	t.Parallel()
 	// Arrange
-	type testType3 struct {
-	}
+	type testType3 struct{}
 
 	registry := NewLinkRegistry()
 
@@ -851,13 +850,12 @@ func BenchmarkInjectLinks(b *testing.B) {
 
 	registryTests := map[string]func() LinkRegistry{
 		// This test won't do much because there's an if-statement blocking execution, but it gives us a bit of insight
-		"no links": func() LinkRegistry {
-			return NewLinkRegistry()
-		},
+		"no links": NewLinkRegistry,
 
 		"3 links for fridge": func() LinkRegistry {
 			registry := NewLinkRegistry()
 			RegisterOn(registry, fridge{}, Self("/api/fridges", "Get this fridge"), Post("/api/fridges", "Create a new fridge"), Delete("/api/v1/fridges/{id}", "Delete a fridge"))
+
 			return registry
 		},
 
@@ -867,6 +865,7 @@ func BenchmarkInjectLinks(b *testing.B) {
 			RegisterOn(registry, vegetable{}, Self("/api/vegetables", "Get this vegetable"), Post("/api/vegetables", "Create a new vegetable"), Delete("/api/v1/vegetables/{id}", "Delete a vegetable"))
 			RegisterOn(registry, fruit{}, Self("/api/fruits", "Get this fruit"), Post("/api/fruits", "Create a new fruit"), Delete("/api/v1/fruits/{id}", "Delete a fruit"))
 			RegisterOn(registry, cake{}, Self("/api/cakes", "Get this cake"), Post("/api/cakes", "Create a new cake"), Delete("/api/v1/cakes/{id}", "Delete a cake"))
+
 			return registry
 		},
 	}
