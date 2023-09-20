@@ -51,7 +51,7 @@ linters:
     - ineffassign
     - interfacebloat
     - interfacer
-#    - ireturn # We disable this one since we're returning any's anyway.
+    - ireturn
     - loggercheck
     - maintidx
     - makezero
